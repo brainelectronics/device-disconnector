@@ -76,6 +76,9 @@ def parse_args(argv: Union[Sequence[str], None] = None) -> Args:
     return parser.parse_args(argv)
 
 def control_ports(parsed_controls: Mapping[str, Mapping[str, bool]], ip: str) -> None:
+    if parsed_controls.keys() not in ("usb", "switch"):
+        raise NotImplementedError("Only 'usb' and 'switch' supported")
+
     for ports, elements in parsed_controls.items():
         pin = "pinD"
         data = {}
@@ -83,9 +86,6 @@ def control_ports(parsed_controls: Mapping[str, Mapping[str, bool]], ip: str) ->
             pin_offset = 0
         elif ports == "switch":
             pin_offset = 3
-
-        if ports not in ["usb", "switch"]:
-            raise NotImplementedError("Only 'usb' and 'switch' supported")
 
         logger.debug(f"ports: {ports}, elements: {elements}")
         # ports: usb, elements: {'1': False}
