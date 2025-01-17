@@ -76,7 +76,7 @@ def parse_args(argv: Union[Sequence[str], None] = None) -> Args:
     return parser.parse_args(argv)
 
 def control_ports(parsed_controls: Mapping[str, Mapping[str, bool]], ip: str) -> None:
-    if parsed_controls.keys() not in ("usb", "switch"):
+    if any(key not in ("usb", "switch") for key in parsed_controls.keys()):
         raise NotImplementedError("Only 'usb' and 'switch' supported")
 
     for ports, elements in parsed_controls.items():
