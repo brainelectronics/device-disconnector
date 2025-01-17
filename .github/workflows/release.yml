@@ -1,0 +1,100 @@
+---
+
+# this file is *not* meant to cover or endorse the use of GitHub Actions, but
+# rather to help make automated releases for this project
+
+name: Upload Python Package
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # all history is needed to crawl it properly
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: 'pyproject.toml' # Read python version from a file pyproject.toml
+      - name: Install deploy dependencies
+        run: |
+          python -m pip install -U "poetry>=1.8.5,<2" twine
+          poetry self add "poetry-dynamic-versioning[plugin]"
+          poetry install
+      - name: Parse changelog
+        id: parse_changelog
+        run: |
+          poetry run changelog-generator \
+            changelog changelog.md \
+            --snippets=.snippets \
+            --in-place \
+            --no-internal \
+            --dry-run > latest-entry.json
+          echo "CHANGELOG_JSON=$(jq -c . < latest-entry.json)" >> $GITHUB_ENV
+      - name: Update changelog with snippets
+        id: update_changelog
+        run: |
+          poetry run changelog-generator \
+            changelog changelog.md \
+            --snippets=.snippets \
+            --in-place \
+            --no-internal
+
+          poetry run changelog2version \
+            --changelog_file changelog.md \
+            --output changelog.json \
+            --print \
+            --debug
+
+          jq -r ".info.description" changelog.json > latest_description.txt
+
+          # remove empty lines from the latest_description.txt
+          sed -i '/^$/d' latest_description.txt
+
+          # remove the last line if it is a markdown version link, like "[1.2.34]"
+          sed -i '$s/^\[[0-9]*\.[0-9]*\.[0-9]*\]\(.*\)$//' latest_description.txt
+
+          echo 'LATEST_DESCRIPTION<<"EOT"' >> $GITHUB_OUTPUT
+          cat latest_description.txt >> $GITHUB_OUTPUT
+          echo '"EOT"' >> $GITHUB_OUTPUT
+          echo "latest_version=$(jq -r '.info.version' changelog.json)" >> $GITHUB_ENV
+      - name: Build package
+        run: |
+          poetry run changelog2version \
+            --changelog_file changelog.md \
+            --version_file device_disconnector/version.py \
+            --version_file_type py \
+            --debug
+          poetry build
+      - name: Test built package
+        run: |
+          twine check dist/*.tar.gz
+      - name: Publish package
+        if: ${{ !contains(fromJson(env.CHANGELOG_JSON).meta.scope, 'internal') }}
+        uses: pypa/gh-action-pypi-publish@release/v1.12
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
+          verbose: true
+          print_hash: true
+      - name: Create Release
+        if: ${{ !contains(fromJson(env.CHANGELOG_JSON).meta.scope, 'internal') }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.latest_version }}
+          release_name: ${{ env.latest_version }}
+          body: ${{ steps.update_changelog.outputs.LATEST_DESCRIPTION }}
+          draft: false
+          prerelease: false
