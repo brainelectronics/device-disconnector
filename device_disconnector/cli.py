@@ -32,6 +32,7 @@ def parse_bool(value: Union[str, int, bool]) -> bool:
         return True
     return False
 
+
 def custom_type(arg_string: str) -> Tuple[str, bool]:
     """Custom argument type for key-value pairs"""
     suggestion = "use 'usb0=on' or 'switch1=off'"
@@ -75,10 +76,40 @@ def parse_args(argv: Union[Sequence[str], None] = None) -> Args:
 
     return parser.parse_args(argv)
 
+
+def check_rest_api_support(ip: str) -> bool:
+    response = requests.get(f"{ip}/get/version", timeout=10)
+    if response.status_code == requests.codes.ok:
+        logger.debug(f"Device software version: {response.json()}")
+        return True
+
+    return False
+
+
 def control_ports(parsed_controls: Mapping[str, Mapping[str, bool]], ip: str) -> None:
     if any(key not in ("usb", "switch") for key in parsed_controls.keys()):
         raise NotImplementedError("Only 'usb' and 'switch' supported")
 
+    if check_rest_api_support(ip=ip):
+        control_ports_v4(parsed_controls=parsed_controls, ip=ip)
+    else:
+        control_ports_v3(parsed_controls=parsed_controls, ip=ip)
+
+
+def control_ports_v4(parsed_controls: Mapping[str, Mapping[str, bool]], ip: str) -> None:
+    data = {}
+    for ports, elements in parsed_controls.items():
+        logger.debug(f"ports: {ports}, elements: {elements}")
+        for port, state in elements.items():
+            data[f"{ports}{port}"] = "on" if state else "off"
+
+    logger.debug(data)
+    response = requests.post(f"{ip}/set", data=data, timeout=10)
+    if response.status_code != requests.codes.ok:
+        logger.warning(f"Failed to post '{data}' to '{ip}'")
+
+
+def control_ports_v3(parsed_controls: Mapping[str, Mapping[str, bool]], ip: str) -> None:
     for ports, elements in parsed_controls.items():
         pin = "pinD"
         data = {}

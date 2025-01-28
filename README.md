@@ -73,7 +73,7 @@ Generate the coverage files with
 
 ```bash
 python create_report_dirs.py
-coverage html
+poetry run coverage run -m pytest -v --cov-report=html
 ```
 
 The coverage report is placed at `reports/coverage/html/index.html`
