@@ -8,7 +8,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from device_disconnector.cli import control_ports, custom_type, parse_bool
+from device_disconnector.cli import (
+    check_rest_api_support,
+    control_ports,
+    custom_type,
+    parse_bool,
+)
 
 
 @pytest.mark.parametrize(
@@ -69,14 +74,18 @@ def test_control_ports_raise(parsed_controls: Mapping[str, Mapping[str, bool]], 
         control_ports(parsed_controls=parsed_controls, ip=ip)
     assert "Only 'usb' and 'switch' supported" in str(e_info.value)
 
+@patch('device_disconnector.cli.check_rest_api_support')
 @pytest.mark.parametrize(
-    "parsed_controls, ip, expectation",
+    "parsed_controls, ip, support_rest_api, expectation",
     [
-        ({'switch': {'1': True}}, "http://192.168.178.50", [{"pinD4": "on"}]),
-        ({'usb': {'0': True, '1': False}, 'switch': {'1': True}}, "http://192.168.178.50", [{"pinD0": "on"}, {"pinD1": "off"}, {"pinD4": "on"}]),
+        ({'switch': {'1': True}}, "http://192.168.178.50", False, [{"pinD4": "on"}]),
+        ({'usb': {'0': True, '1': False}, 'switch': {'1': True}}, "http://192.168.178.50", False, [{"pinD0": "on"}, {"pinD1": "off"}, {"pinD4": "on"}]),
+        ({'switch': {'1': True}}, "http://192.168.178.50", True, [{"switch1": "on"}]),
+        ({'usb': {'0': True, '1': False}, 'switch': {'1': True}}, "http://192.168.178.50", True, [{"usb0": "on", "usb1": "off", "switch1": "on"}]),
     ]
 )
-def test_control_ports(parsed_controls: Mapping[str, Mapping[str, bool]], ip: str, expectation: List[Mapping[str, str]]) -> None:
+def test_control_ports(mock_function, parsed_controls: Mapping[str, Mapping[str, bool]], ip: str, support_rest_api: bool, expectation: List[Mapping[str, str]]) -> None:
+    mock_function.return_value = support_rest_api
     with patch('requests.post') as mock_post:
         mock_response = MagicMock()
         mock_post.return_value = mock_response
@@ -84,10 +93,32 @@ def test_control_ports(parsed_controls: Mapping[str, Mapping[str, bool]], ip: st
 
         control_ports(parsed_controls=parsed_controls, ip=ip)
 
-        assert (mock_post.call_count) == len(expectation)
-        for idx, data in enumerate(expectation):
-            mock_post.assert_any_call(
-                ip,
-                data=data,
-                timeout=10
-            )
+        if support_rest_api:
+            assert mock_post.call_count == 1
+            mock_post.assert_called_once_with(f"{ip}/set", data=expectation[0], timeout=10)
+
+        else:
+            assert (mock_post.call_count) == len(expectation)
+            for idx, data in enumerate(expectation):
+                mock_post.assert_any_call(
+                    ip,
+                    data=data,
+                    timeout=10
+                )
+
+@pytest.mark.parametrize(
+    "status_code, expectation",
+    [
+        (200, True),
+        (404, False),
+    ]
+)
+def test_check_rest_api_support(status_code: int, expectation: bool) -> None:
+    with patch('requests.get') as mock_get:
+        mock_get.return_value.status_code = status_code
+        ip = "http://192.168.178.50"
+        endpoint = "/get/version"
+
+        result = check_rest_api_support(ip=ip)
+        assert result == expectation
+        mock_get.assert_called_once_with(f"{ip}{endpoint}", timeout=10)
