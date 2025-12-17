@@ -1,0 +1,60 @@
+<!-- templates/base.html -->
+
+<!DOCTYPE HTML>
+<html lang='en'><head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width'>
+
+{% block style_css %}
+{% endblock %}
+
+<title>IP Device Disconnector</title>
+</head><body style='font-family:Helvetica, sans-serif'>
+<div class='element'>
+<form method='post' action='/' name='pins' id='pins'><table id='customers'><tbody><tr>
+<th width='200px' style='text-align: center;'>Description</th>
+<th width='120px' style='text-align: center;'>Control</th>
+<th width='50px' style='text-align: center;'>Status</th>
+<th width='50px' style='text-align: center;'>Lock</th></tr>
+{% for i in range(0, NUMBER_USB_PORTS) %}
+    <tr><td>USB {{ i + 1 }}
+    <td><label class='switch'>
+        <input name='usb{{ i }}' id='checkbox{{ i }}' type='checkbox' onclick='clickFn(event)' {% if sr[i] == 1 %}checked{% endif %}{% if usb_locks[i] == 1%} disabled{% endif %}>
+        <span class='slider round'></span>
+    </label></td>
+    <td><label class='myLabel' id='usb{{ i }}'>&#10060;</label></td>
+    <td><label><a id='lock{{ i }}' onclick='clickLockFn(event)'>
+        {%- if usb_locks[i] -%}
+            &#128274;  {# locked emoji #}
+        {% else %}
+            &#128275;  {# unlocked emoji #}
+        {%- endif -%}
+    </a></label></td></tr>
+{% endfor %}
+{% for i in range(0, NUMBER_SWITCH_PINS) %}
+    <tr><td>External {{ i + 1 }}
+    <td><label class='switch'>
+        <input name='switch{{ i }}' id='checkbox{{ i + SWITCH_PINS_OFFSET }}' type='checkbox' onclick='clickFn(event)' {% if sr[i + SWITCH_PINS_OFFSET] == 1 %}checked{% endif %}{% if switch_locks[i] == 1 %} disabled{% endif %}>
+        <span class='slider round'></span>
+    </label></td>
+    <td><label class='myLabel' id='switch{{ i }}'>&#10060;</label></td>
+    <td><label><a id='lock{{ i + SWITCH_PINS_OFFSET }}' onclick='clickLockFn(event)'>
+        {%- if switch_locks[i] -%}
+            &#128274;  {# locked emoji #}
+        {% else %}
+            &#128275;  {# unlocked emoji #}
+        {%- endif -%}
+    </a></label></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</form>
+Created {{ isoTimeBuffer }}&#128022;</div>
+
+
+<!-- ADD SCRIPT HERE -->
+{% block javascript %}
+{% endblock %}
+
+</body>
+</html>

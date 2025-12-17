@@ -1,0 +1,13 @@
+---
+
+version: '3.6'
+
+services:
+  web:
+    restart: always
+    build: '.'
+    # flask requires SIGINT to stop gracefully
+    # (default stop signal from Compose is SIGTERM)
+    stop_signal: SIGINT
+    ports:
+      - '5099:5099'

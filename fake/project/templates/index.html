@@ -1,0 +1,180 @@
+<!-- templates/index.html -->
+
+{% extends "base.html" %}
+
+{% block style_css %}
+<style type="text/css">
+/* FANCY TABLE */
+#customers {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+}
+
+#customers td, #customers th {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+#customers tr:nth-child(even){background-color: #f2f2f2;}
+
+#customers tr:hover {background-color: #ddd;}
+
+#customers th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: left;
+  background-color: #04AA6D;
+  color: white;
+}
+
+/* CENTER CONTENT */
+.element {
+  max-width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* SLIDER SWITCH */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+
+input:disabled {
+  background-color: blue;
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+</style>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    function clickFn(event) {
+        const checkbox = event.currentTarget;
+        console.log(checkbox.name, checkbox.id, checkbox.checked);
+
+        set_icon(checkbox.name, checkbox.checked, checkbox.id);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/set", true);
+        // Send the proper header information along with the request
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+        xhr.send(checkbox.name + "=" + (checkbox.checked ? 'on': 'off'));
+    }
+
+    function set_icon(id, state, type) {
+        var status_label = document.getElementById(id);
+        const light_bulb = '&#128161;';
+        const rocket = '&#128640;';
+        const cross = '&#10060;';
+        const flash = '&#9889;';
+        if (state) {
+            if (status_label.id.includes('usb')) {
+                status_label.innerHTML = rocket;
+            } else {
+                status_label.innerHTML = flash;
+            }
+        } else {
+            status_label.innerHTML = cross;
+        }
+    }
+
+    window.onload = function(argument) {
+        var all_checkboxes = document.querySelectorAll("label.switch");
+        for (var i = 0; i < all_checkboxes.length; i++) {
+            var checkbox = all_checkboxes[i].children[0];
+            var checked = checkbox.checked;
+            console.log(checked, checkbox.name);
+            set_icon(checkbox.name, checked, checkbox.id);
+        }
+    }
+
+    function clickLockFn(event) {
+        const lock = event.currentTarget;
+        console.log(lock.name, lock.id);
+
+        var lock_label = document.getElementById(lock.id);
+        //var checkbox = document.getElementById(lock.id.replace("lock", "usb") + "checkbox");
+        var checkbox = document.getElementById(lock.id.replace("lock", "checkbox"));
+        var new_status = 0;
+        // console.log(lock_label.innerHTML);   // print icon as icon
+        console.log(escape(lock_label.innerHTML));
+        console.log("Manipulate " + checkbox.id);
+        if (escape(lock_label.innerHTML) === "%uD83D%uDD13") {
+            console.log(lock.id + " is locked now");
+            lock_label.innerHTML = "&#128274;";
+            new_status = 1;
+            checkbox.disabled = true;
+        } else {
+            console.log(lock.id + " is unlocked now");
+            lock_label.innerHTML = "&#128275;";
+            new_status = 0;
+            checkbox.disabled = false;
+        }
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/set", true);
+        // Send the proper header information along with the request
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+        xhr.send(checkbox.name + "=" + (checkbox.checked ? 'on': 'off'));
+        console.log(checkbox.id + "=" + (new_status?'on':'off'));
+    }
+</script>
+{% endblock %}
